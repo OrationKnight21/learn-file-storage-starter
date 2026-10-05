@@ -1,10 +1,10 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 
 	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/auth"
 	"github.com/google/uuid"
@@ -63,18 +63,13 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		respondWithError(w, http.StatusUnauthorized, "unauthorized user", nil)
 		return
 	}
-	videoThumbnails[vid.ID] = thumbnail{
-		data:      data,
-		mediaType: mediaType,
-	}
-	thumbnailUrl := fmt.Sprintf("http://localhost:%v/api/thumbnails/%s", cfg.port, vid.ID)
-	updatedVid := vid
-	updatedVid.UpdatedAt = time.Now()
-	updatedVid.ThumbnailURL = &thumbnailUrl
-	err = cfg.db.UpdateVideo(updatedVid)
+	str := base64.StdEncoding.EncodeToString(data)
+	dataUrl := fmt.Sprintf("data:%s;base64,%s", mediaType, str)
+	vid.ThumbnailURL = &dataUrl
+	err = cfg.db.UpdateVideo(vid)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "couldn't update video", err)
 		return
 	}
-	respondWithJSON(w, http.StatusOK, updatedVid)
+	respondWithJSON(w, http.StatusOK, vid)
 }
