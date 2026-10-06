@@ -1,10 +1,12 @@
 package main
 
 import (
-	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/auth"
 	"github.com/google/uuid"
@@ -49,11 +51,6 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		respondWithError(w, http.StatusBadRequest, "Missing Content-Type", nil)
 		return
 	}
-	data, err := io.ReadAll(v)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "couldn't read the image", err)
-		return
-	}
 	vid, err := cfg.db.GetVideo(videoID)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "record not found", err)
@@ -63,9 +60,27 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		respondWithError(w, http.StatusUnauthorized, "unauthorized user", nil)
 		return
 	}
-	str := base64.StdEncoding.EncodeToString(data)
-	dataUrl := fmt.Sprintf("data:%s;base64,%s", mediaType, str)
-	vid.ThumbnailURL = &dataUrl
+	parts := strings.Split(mediaType, "/")
+	if len(parts) != 2 || parts[1] == "" {
+		respondWithError(w, http.StatusBadRequest, "malformed content-type", nil)
+		return
+	}
+	extensionType := parts[1]
+	fileName := fmt.Sprintf("%s.%s", videoIDString, extensionType)
+	dataPath := filepath.Join(cfg.assetsRoot, fileName)
+	file, err := os.Create(dataPath)
+	if err != nil {
+		respondWithError(w, http.StatusNotImplemented, "could not create the file", err)
+		return
+	}
+	defer file.Close()
+	_, err = io.Copy(file, v)
+	if err != nil {
+		respondWithError(w, http.StatusNotImplemented, "could not copy contents", err)
+		return
+	}
+	thumnailUrl := fmt.Sprintf("http://localhost:%v/assets/%s.%s", cfg.port, vid.ID, extensionType)
+	vid.ThumbnailURL = &thumnailUrl
 	err = cfg.db.UpdateVideo(vid)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "couldn't update video", err)
