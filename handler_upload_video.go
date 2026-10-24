@@ -105,7 +105,7 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		respondWithError(w, http.StatusInternalServerError, "couldn't put the object", err)
 		return
 	}
-	videoUrl := fmt.Sprintf("https://%s.s3.%s.amazonaws.com/%v", cfg.s3Bucket, cfg.s3Region, fileKey)
+	videoUrl := fmt.Sprintf("https://%s/%v", cfg.s3CfDistribution, fileKey)
 	vid.VideoURL = &videoUrl
 	err = cfg.db.UpdateVideo(vid)
 	if err != nil {
