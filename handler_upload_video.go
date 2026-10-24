@@ -80,32 +80,6 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		respondWithError(w, http.StatusInternalServerError, "could not copy contents", err)
 		return
 	}
-	aspectRatio, err := getVideoAspectRatio(file.Name())
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "could not get the aspect ratio", err)
-		return
-	}
-	var prefix string
-	switch aspectRatio {
-	case "9:16":
-		prefix = "portrait"
-	case "16:9":
-		prefix = "landscape"
-	default:
-		prefix = "other"
-	}
-	processedFilePath, err := processVideoForFastStart(file.Name())
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "could not process the file", err)
-		return
-	}
-	processedFile, err := os.Open(processedFilePath)
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "could not open the file/ file not found", err)
-		return
-	}
-	defer os.Remove(processedFile.Name())
-	defer processedFile.Close()
 	_, err = file.Seek(0, io.SeekStart)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "could not set the offset", err)
@@ -124,11 +98,11 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	encoded := base64.RawURLEncoding.EncodeToString(randSlice)
-	fileKey := fmt.Sprintf("%s/%s.%s", prefix, encoded, extensionType)
+	fileKey := fmt.Sprintf("%s.%s", encoded, extensionType)
 	_, err = cfg.s3Client.PutObject(r.Context(), &s3.PutObjectInput{
 		Bucket:      aws.String(cfg.s3Bucket),
 		Key:         aws.String(fileKey),
-		Body:        processedFile,
+		Body:        file,
 		ContentType: aws.String(mediaType),
 	})
 	if err != nil {
