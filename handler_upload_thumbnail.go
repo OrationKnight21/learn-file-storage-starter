@@ -1,8 +1,6 @@
 package main
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
@@ -68,27 +66,20 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	extensionType := parts[1]
-	randSlice := make([]byte, 32)
-	_, err = rand.Read(randSlice)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "error reading", err)
-		return
-	}
-	encoded := base64.RawURLEncoding.EncodeToString(randSlice)
-	fileName := fmt.Sprintf("%s.%s", encoded, extensionType)
+	fileName := fmt.Sprintf("%s.%s", videoIDString, extensionType)
 	dataPath := filepath.Join(cfg.assetsRoot, fileName)
 	file, err := os.Create(dataPath)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "could not create the file", err)
+		respondWithError(w, http.StatusNotImplemented, "could not create the file", err)
 		return
 	}
 	defer file.Close()
 	_, err = io.Copy(file, v)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "could not copy contents", err)
+		respondWithError(w, http.StatusNotImplemented, "could not copy contents", err)
 		return
 	}
-	thumnailUrl := fmt.Sprintf("http://localhost:%v/assets/%s.%s", cfg.port, fileName, extensionType)
+	thumnailUrl := fmt.Sprintf("http://localhost:%v/assets/%s.%s", cfg.port, vid.ID, extensionType)
 	vid.ThumbnailURL = &thumnailUrl
 	err = cfg.db.UpdateVideo(vid)
 	if err != nil {
